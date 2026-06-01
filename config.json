@@ -1,0 +1,163 @@
+{
+  "global": {
+    "max_concurrent_positions": 8,
+    "min_trade_usd": 0.5,
+    "min_profit_usd": 0.01,
+    "reserved_for_gas_usd": 0.1,
+    "e1_capital_reserve_usd": 0.0,
+    "capital_hard_floor_usd": 0.5,
+    "gas_pct_cap": 0.05,
+    "fee_rate": 0.0,
+    "_fee_rate_comment": "2026-05-29 VERIFIED from Polymarket docs: fees are NOT zero anymore. Platform fee is TAKER-ONLY and SELL orders are EXEMPT. Crypto taker fee = shares*feeRate*p*(1-p) with feeRate~0.072 -> peak EFFECTIVE 1.80% at p=0.50, ~0 at the 0/1 extremes. Makers pay $0 + earn a ~20-25% rebate of the counterparty's taker fee. Implication: (1) taker-buy ARB is dead (~1.8%x2 near 50/50); (2) the MM touch-maker is fee-safe by construction (maker bids = $0, sells exempt) so its measured PnL is ~honest at fee_rate=0; (3) NEVER add a taker-buy path near 50/50. crypto_taker_fee_rate below is for any future taker-cost gate.",
+    "crypto_taker_fee_rate": 0.072,
+    "maker_rebate_pct": 0.20,
+    "gas_usd_per_leg": 0.0,
+    "slippage_bps": 200,
+    "_slippage_bps_comment": "Raised 50 -> 200 (2026-05-18). Paper fill simulator applies 200bps buy slip (order_manager._paper_fill, slip=1.02). Edge gate must buffer the same magnitude or every gate-passing trade gets executed into guaranteed loss. Live taker fills on $0.5-$3 size also routinely slip 100-200bps; 200bps is the conservative real-world floor.",
+    "daily_loss_limit_usd": 4.0,
+    "weekly_loss_limit_usd": 12.0,
+    "_engine_daily_loss_comment": "Per-engine daily loss circuit breaker (independent of global limit). Trips at midnight like HALT_DAILY. Set to ~30% of each engine's capital bucket so one bad day on a single engine doesn't halve another engine's capital.",
+    "engine_daily_loss_limit_usd": {
+      "E3": 3.0
+    },
+    "_e3_cumulative_loss_comment": "Permanent E3 halt (does not expire at midnight). If all-time E3 realized_pnl drops to or below -$2.56, E3 is halted until manual /resume. Set at ~25% of E3 capital bucket ($10) as a live-trading safety net. Cleared by /resume (force_resume_all).",
+    "e3_cumulative_loss_limit_usd": 2.56,
+    "max_position_age_hours": 8,
+    "paper_resolution_grace_hours": 2.0,
+    "_paper_resolution_short_hold_comment": "2026-05-18: E3 STRICT_UPDOWN_LOCK positions are 15-20s holds. Waiting 2hrs past market end_date before paper-resolving them is absurd. This shorter grace only applies to short-hold engine positions (currently STRICT_UPDOWN_LOCK).",
+    "paper_resolution_short_hold_grace_hours": 0.0167,
+    "paper_resolution_max_hold_sec": 30,
+    "paper_resolution_price_threshold": 0.95,
+    "max_trade_pct_of_balance": 0.3,
+    "paper_starting_balance_usd": 40.0,
+    "min_order_usd_live": 1.05,
+    "max_exposure_per_event_usd": 3.0,
+    "max_exposure_per_market_usd": 2.0,
+    "book_ws_freshness_max_sec": 60,
+    "_book_ws_freshness_comment": "Near-locked UPDOWN binaries have zero trading activity so no price_change WS events. 2s caused false-stale on every E3 fill. 60s is safe: WS ping/pong keeps connection alive; if book hasn't changed in 60s that is normal for illiquid markets.",
+    "_allocation_comment": "2026-05-23: replaced fixed-dollar capital_buckets with mode-aware percentage tables so paper and live money never cross. Each engine draws from its OWN world: a paper engine sizes against the fixed paper_starting_balance_usd ($40); a live engine sizes against the real on-chain USDC balance. Fractions of that world's balance per engine below. Live: 100% to E3, others paused at 0 (E3 sniper canary).",
+    "paper_allocation_pct": {
+      "E3": 0.4
+    },
+    "live_allocation_pct": {
+      "E3": 1.0
+    },
+    "live_wallet_balance_usd": 7.4153
+  },
+  "mark_to_market": {
+    "enabled": true,
+    "interval_sec": 15,
+    "e3_interval_sec": 1,
+    "stop_loss_pct": -25.0,
+    "take_profit_pct": 15.0,
+    "log_unchanged_every_n": 5,
+    "_sl_comment": "Default -5 raised to -25 (2026-05-19). 200bps paper slip + wide bid-ask spread on entry means a fresh position marks at -5% instantly before any price move.",
+    "engine_overrides": {
+      "E3": {
+        "stop_loss_pct": -30.0,
+        "take_profit_pct": 9999.0,
+        "_comment": "2026-05-19: hold_to_resolution=false now. LATE_LOCK positions use MTM with intrinsic marking + -30% SL. -30% accounts for 200bps entry slip + genuine adverse moves in 60-180s holds. TP=9999 means no take-profit — winners run to resolution. STRICT_UPDOWN_LOCK is always skipped by MTM (hardcoded at mark_to_market.py ~line 250)."
+      }
+    }
+  },
+  "mm": {
+    "_comment": "Market-making engine. Posts resting limit orders around fair value on UPDOWN crypto binaries, earns spread, cancels before lock. Replaces the E3 taker sniper. 1h = live-intent (clean Binance anchor); 15m = paper observe-only (Chainlink Data Streams settle, we only have stale aggregator proxy).",
+    "enabled": true,
+    "paper_trade": false,
+    "_paper_trade_comment": "2026-05-31 RE-ARMED LIVE (run 3). The shelve verdict was overconfident: backing the -$0.61 market-dump-exit mistake out of the -$0.43 total, the strategy book was ~+$0.18 on marks before I flattened. The two prior negatives were confounded (run1 = ask-chase bug, since fixed; run2 = my panic FAK dump + averaging-down). User approved a bounded re-test with a $3 risk budget (wallet $18.03 -> hard floor ~$15). Re-arm adds ONE new guard: event_markets.no_average_down=true (never add to a held leg below avg cost — kills the 665374 falling-knife). Hard rules this run: (1) mm_cumulative_loss_limit_usd=3.0 = permanent halt; (2) NEVER market-dump to flatten — patient limit sells only, and flag mark-vs-realizable before any flatten. Set paper via config mm.paper_trade=true + unit PAPER_TRADE=true to halt. See [[project_mm_live_execution]] + [[feedback_working_style]].",
+    "paper_starting_balance_usd": 30.0,
+    "assets": [
+      "BTC",
+      "ETH",
+      "SOL"
+    ],
+    "discovery_interval_sec": 60,
+    "quote_refresh_sec": 2,
+    "min_book_depth_usd": 1.0,
+    "_horizon_tuning_comment": "2026-05-29 v3 PIVOT to balanced TOUCH-MAKER: quote AT the best bid/ask on BOTH tokens for frequent fills (the v2 pair bids sat behind the touch and never filled), capture the 1c spread per round-trip, cut losers fast. book source is now REST POLL (POST /books, ~32ms) not the WS (which froze inside the process). Knobs: touch_inventory_cap_usd = max $ held per leg before we stop bidding; touch_cut_ticks = sell at market if best_bid falls this many ticks below our avg cost (the adverse-selection stop); tick_size = price increment; size_usd = per-quote size. book_poll_interval_sec = REST poll cadence. Old pair knobs (unpaired_cap_usd/pair_cap_usd/inv_skew_k/neutralize_max_pair_cost) and half_spread/vol_* are unused by the touch-maker, kept for now.",
+    "book_poll_interval_sec": 1.0,
+    "horizons": {
+      "1h": {
+        "enabled": false,
+        "_enabled_comment": "2026-05-29 DISABLED. 56min paper proved crypto touch-making is uniformly negative (-6.4c/round-trip, every market lost, -$6.43) — gamma-adverse by construction. Worse, its bleed tripped the SHARED mm circuit breaker and halted the profitable fee-free event strategy. Conclusive baseline gathered; no reason to keep bleeding. Re-enable only to re-measure.",
+        "live_intent": true,
+        "size_usd": 1.1,
+        "t_cancel_sec": 90,
+        "touch_inventory_cap_usd": 1.0,
+        "touch_cut_ticks": 2,
+        "tick_size": 0.01,
+        "drift_guard_bps": 12.0,
+        "drift_window_sec": 20.0,
+        "half_spread": 0.02,
+        "requote_theta": 0.005,
+        "unpaired_cap_usd": 1.0,
+        "pair_cap_usd": 2.5,
+        "inv_skew_k": 0.03,
+        "neutralize_max_pair_cost": 1.0,
+        "vol_spread_coeff": 1.5,
+        "vol_window_sec": 60,
+        "near_expiry_widen": 1.0,
+        "max_half_spread": 0.2,
+        "settle_venue": "binance_btcusdt"
+      },
+      "15m": {
+        "enabled": false,
+        "live_intent": false,
+        "half_spread": 0.025,
+        "size_usd": 1.05,
+        "t_cancel_sec": 30,
+        "requote_theta": 0.005,
+        "unpaired_cap_usd": 1.0,
+        "pair_cap_usd": 2.5,
+        "inv_skew_k": 0.03,
+        "neutralize_max_pair_cost": 1.0,
+        "vol_spread_coeff": 1.5,
+        "vol_window_sec": 60,
+        "near_expiry_widen": 1.0,
+        "max_half_spread": 0.2,
+        "settle_venue": "chainlink_aggregator_proxy"
+      }
+    },
+    "_event_markets_comment": "2026-05-29 PIVOT to fee-free event markets. Verified live via Gamma feeSchedule/feesEnabled: geopolitics (76 free) + world (89 free) markets are PERMANENTLY FEE-FREE, with 1-1.5c spreads and $74-118k median volume. Unlike crypto binaries they are NEWS-driven (prices sit stable between headlines, not a mechanical gamma-grind to 0/1) -> the choppy/mean-reverting regime spread-capture needs. Same touch-maker runs here with consensus=None (no underlying feed -> drift guard naturally off, which is correct: there is no gamma gap to guard against). Discovery filters per-market fee-free + makeable (spread<=max, mid in band, volume>=min). Lower trade frequency than crypto but each fee-free spread capture is real.",
+    "event_markets": {
+      "enabled": true,
+      "tags": ["geopolitics", "world"],
+      "max_spread": 0.04,
+      "mid_min": 0.12,
+      "mid_max": 0.88,
+      "min_seconds_left": 7776000,
+      "min_dist_from_half": 0.13,
+      "_pinpoint_comment": "2026-05-29 sharpened after 4.5h paper. TRUE-PnL (realized+MTM) split by distance-from-0.50, not by tag: the only two losers (957019 -$0.47, 567688 -$0.11) were the two markets nearest 0.50; every winner sat far from it. Near-50/50 binaries = max variance = max adverse selection. So (1) min_dist_from_half=0.13 -> only quote mids <=0.37 or >=0.63 (barbell, skip the coin-flip middle); (2) min_seconds_left=7776000 (~90d) -> drop short-dated markets like 957019 (was 31d, the rest are ~215d). Threshold is 0.13 not 0.15 because we already HOLD 682706 (mid ~0.365, dist 0.135) — excluding a held market orphans its inventory (no QuoteManager -> no cut/stop). 0.13 sits in the clean gap between the marginal hold (0.135) and both losers (<=0.10), so it keeps managing what we hold while still dropping the losers. Cuts are data-driven from the held book, not the survivorship-biased green Telegram round-trip pings.",
+      "min_volume_usd": 10000,
+      "_max_markets_comment": "2026-05-29 evening: raised 20->35. Discovery was pinned at exactly 20 every cycle (book_ws subscribed=40=20x2 tokens) -> the cap was BINDING, more qualifying calm markets exist beyond it. Net exposure ~$0.01 vs the $8 cap and the per-market $1 touch cap both far from binding, so this is pure frequency upside at the SAME quality bar (fee-free + dist>=0.13 + 90d + vol>=10k all unchanged). After removing 957019 (58% of fills, the near-50/50 bleeder) the all-day 25-60/hr rate collapsed to ~3.6/hr; widening the universe is the only frequency lever that does NOT re-introduce adverse selection. If discovery still tops out at ~20 with cap=35, the universe is exhausted at this quality bar and adding fee-free tags is the next step.",
+      "_canary_comment": "2026-05-31: scaled to 10 markets at $18.46 wallet (10 x ~$1.5 avg bid = ~$15 peak, within balance). Was 3 for the $5 canary.",
+      "max_markets": 10,
+      "size_usd": 1.0,
+      "_min_order_shares_comment": "2026-05-30: Polymarket rejects orders below 5 shares ('Size lower than the minimum: 5'), found live. Orders are sized qty=max(min_order_shares, size_usd/price) so they always conform.",
+      "min_order_shares": 5,
+      "_max_leg_price_comment": "2026-05-30: only ACCUMULATE the cheap leg (price <= this). The 5-share min makes the expensive leg of a binary cost 5*price (>=$4 near $0.80) — unaffordable on a small wallet. 0.40 covers the whole cheap side of the barbell universe (mids 0.12-0.37). Max lot = 5*0.40 = $2.",
+      "max_leg_price": 0.40,
+      "_touch_inventory_cap_comment": "2026-05-31: 1.5 for the funded ($18.46) run. The touch-maker has NO global exposure cap (global_net_exposure_cap_usd feeds only the unused v2 pair model), so max gross = max_markets * this. 10 * 1.5 = $15 stays under the wallet with buffer for the held 665374 + slippage. Was 1.0 for the $5 canary.",
+      "touch_inventory_cap_usd": 1.5,
+      "touch_cut_ticks": 2,
+      "_min_profit_ticks_comment": "2026-05-31: resell ask is floored at cost + this many ticks (max(best_ask, cost+N*tick)). Fixes the edge leak where the ask chased best_ask DOWN and re-sold at breakeven/loss (mkt 665224: cancelled its own 0.31 winner, re-sold 0.30). 1 = require at least +1c on the round-trip. 0 = historic chase-the-touch.",
+      "min_profit_ticks": 1,
+      "_no_average_down_comment": "2026-05-31 run-3 guard: once we hold a leg, never ADD to it at a price below our avg cost. The 2-tick CUT only fires once best_bid falls cut_ticks below cost; in the band between cost and that, the old code kept bidding lower into a falling leg (665374 accumulated 13.3sh as price fell 0.17->0.13 — a falling knife with no resell on a 213d book). true = stop accumulating the moment a held leg goes underwater. false = historic accumulate-anywhere (paper/test default).",
+      "no_average_down": true,
+      "tick_size": 0.01,
+      "t_cancel_sec": 90,
+      "_inventory_max_age_comment": "2026-05-30: time-based inventory recycle. These event markets resolve ~214d out, so a one-sided leg waiting for its resell ask to fill could sit for MONTHS, freezing capital (live: real USDC). If a leg has held shares longer than this without completing its round-trip, sell at the best bid to recycle. The ask-resell still gets first crack at the FULL spread inside the window; this is only the fallback so nothing sits indefinitely. 3600s=1h gives the profitable resell a fair chance, then recycles. Tune in paper by watching the give-back on the ⏱️ AGE-FLATTEN pings. 0 disables.",
+      "inventory_max_age_sec": 14400,
+      "drift_guard_bps": 12.0,
+      "drift_window_sec": 20.0
+    },
+    "global_net_exposure_cap_usd": 8.0,
+    "_loss_limit_canary_comment": "2026-05-31 run-3 (+MTM fix): $3.0 daily / $3.0 cumulative — the user's explicit budget (wallet $18.03 -> halt at ~$15). The PERMANENT floor now trips on TRUE PnL = realized + unrealized (check_mm_and_trip gets true_total from mm_main risk_loop), so it CATCHES inventory bled at cost — the dominant touch-maker loss mode that realized-only used to hide (run-3 sat at true -$0.53 while the breaker read $0). Permanent breach clears only via /resume. Daily check stays realized-today.",
+    "mm_daily_loss_limit_usd": 3.0,
+    "mm_cumulative_loss_limit_usd": 3.0,
+    "quote_band": [
+      0.3,
+      0.7
+    ]
+  }
+}
