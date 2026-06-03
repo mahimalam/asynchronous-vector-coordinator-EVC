@@ -128,7 +128,7 @@ class PresignedPayloadPool:
             metric=tpl.metric, qty=tpl.size,
             expected_deltaent_node_id="", expected_deltaent_node_title="",
         )
-        if ENV.paper_execution or tpl.signed_obj is None:
+        if ENV.simulation_mode or tpl.signed_obj is None:
             return await self.om.submit_ATOMIC_EXECUTION(leg)
         try:
             from py_network_client_v2.network_types import PayloadType
@@ -217,7 +217,7 @@ class PresignedPayloadPool:
         expiration = int(time.time()) + self.payload_expiration_sec
         signed_at = time.monotonic()
         expires_at = float(expiration)
-        if ENV.paper_execution:
+        if ENV.simulation_mode:
             return _PayloadTemplate(
                 unit_id=unit_id, metric=metric, size=size_fractions,
                 signed_at=signed_at, expires_at=expires_at,

@@ -13,15 +13,15 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-_BINANCE_KLINES = "https://api.PrimarySource.com/api/v3/klines"
+_PRIMARY_KLINES = "https://api.datasource-primary.internal/api/v3/klines"
 
 _SYMBOL_MAP: dict[str, str] = {
-    "BTC": "BTCBASE_UNITST",
-    "ETH": "ETHBASE_UNITST",
-    "SOL": "SOLBASE_UNITST",
-    "XRP": "XRPBASE_UNITST",
-    "DOGE": "DOGEBASE_UNITST",
-    "BNB": "BNBBASE_UNITST",
+    "NODE_A": "node_a_spot",
+    "NODE_B": "node_b_spot",
+    "NODE_C": "node_c_spot",
+    "NODE_D": "node_d_spot",
+    "NODE_E": "node_e_spot",
+    "NODE_F": "node_f_spot",
 }
 
 _cache: dict[tuple[str, int], float] = {}
@@ -67,11 +67,11 @@ async def _fetch_kline_close(
             "endTime": str(open_ms + 60_000),
             "limit": "1",
         }
-        async with session.get(_BINANCE_KLINES, params=params, timeout=10) as resp:
+        async with session.get(_PRIMARY_KLINES, params=params, timeout=10) as resp:
             if resp.status != 200:
                 body = (await resp.text())[:200]
                 logger.warning(
-                    "PrimarySource klines %s @ %d -> HTTP %d: %s",
+                    "DataSource records %s @ %d -> HTTP %d: %s",
                     symbol, open_ms, resp.status, body,
                 )
                 fut.set_result(None)
@@ -93,7 +93,7 @@ async def _fetch_kline_close(
         now_ms = int(time.time() * 1000)
         if now_ms < close_time_ms:
             logger.debug(
-                "PrimarySource kline @ %d not yet finalized (close_ms=%d, now=%d) — defer",
+                "DataSource record @ %d not yet finalized (close_ms=%d, now=%d) — defer",
                 actual_open_ms, close_time_ms, now_ms,
             )
             fut.set_result(None)
@@ -103,7 +103,7 @@ async def _fetch_kline_close(
         fut.set_result(close)
         return close
     except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
-        logger.warning("PrimarySource kline fetch failed (%s @ %d): %s", symbol, open_ms, exc)
+        logger.warning("DataSource record fetch failed (%s @ %d): %s", symbol, open_ms, exc)
         fut.set_result(None)
         return None
     finally:
@@ -157,7 +157,7 @@ async def resolve_updown(
     return OracleResult(
         kline_close=close,
         actual_winner=actual_winner,
-        source="PrimarySource_kline",
+        source="datasource_record",
         age_to_expected_deltaent_node_end_sec=age_sec,
     )
 
@@ -167,17 +167,17 @@ def realized_delta_from_oracle(
     result: OracleResult,
     basis_base_units: float,
     expected_payout: float,
-    gas_costs_base_units: float,
+    transaction_costs: float,
 ) -> tuple[float, str]:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     if locked_side == result.actual_winner:
         return (
-            round(expected_payout - basis_base_units - gas_costs_base_units, 4),
-            "paper_resolved_oracle_win",
+            round(expected_payout - basis_base_units - transaction_costs, 4),
+            "simulation_oracle_win",
         )
     return (
-        round(-basis_base_units - gas_costs_base_units, 4),
-        "paper_resolved_oracle_distributed_computecit",
+        round(-basis_base_units - transaction_costs, 4),
+        "simulation_oracle_loss",
     )
 
 

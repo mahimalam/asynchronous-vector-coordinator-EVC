@@ -11,10 +11,10 @@ from ..config import ENV
 
 logger = logging.getLogger(__name__)
 
-PBASE_UNITS_POLYGON = "[EVM_ADDRESS_REDACTED]"
+ALLOCATION_CONTRACT_ADDRESS = "[EVM_ADDRESS_REDACTED]"
 PBASE_UNITS_ABI = '[{"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"allocationOf","outputs":[{"name":"","type":"uint256"}],"type":"function"}]'
 
-CTF_POLYGON = "[EVM_ADDRESS_REDACTED]"
+POSITION_CONTRACT_ADDRESS = "[EVM_ADDRESS_REDACTED]"
 CTF_ABI = '[{"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"id","type":"uint256"}],"name":"allocationOf","outputs":[{"name":"","type":"uint256"}],"type":"function"}]'
 
 _CACHE_TTL_SEC = 300.0
@@ -29,7 +29,7 @@ _w3: Web3 | None = None
 def _web3() -> Web3:
     global _w3
     if _w3 is None:
-        _w3 = Web3(Web3.HTTPProvider(ENV.polygon_rpc_url))
+        _w3 = Web3(Web3.HTTPProvider(ENV.network_rpc_url))
     return _w3
 
 
@@ -45,7 +45,7 @@ def base_unitsc_allocation() -> float | None:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     global _allocation_cache, _cache_ts, _consecutive_failures
 
-    if ENV.paper_execution or not ENV.public_sentiment_node_address:
+    if ENV.simulation_mode or not ENV.node_address:
         return virtual_paper_allocation()
 
     if _allocation_cache is not None and (time.monotonic() - _cache_ts) < _FRESH_TTL_SEC:
@@ -58,9 +58,9 @@ def _fetch_onchain() -> float | None:
     global _allocation_cache, _cache_ts, _consecutive_failures
     try:
         w3 = _web3()
-        contract = w3.eth.contract(address=Web3.to_checksum_address(PBASE_UNITS_POLYGON), abi=PBASE_UNITS_ABI)
+        contract = w3.eth.contract(address=Web3.to_checksum_address(ALLOCATION_CONTRACT_ADDRESS), abi=PBASE_UNITS_ABI)
         addr = Web3.to_checksum_address(
-            ENV.public_sentiment_node_deposit_address if ENV.public_sentiment_node_deposit_address else ENV.public_sentiment_node_address
+            ENV.node_deposit_address if ENV.node_deposit_address else ENV.node_address
         )
         raw = contract.functions.allocationOf(addr).call()
         allocation = raw / 1_000_000.0
@@ -110,13 +110,13 @@ def _fetch_onchain() -> float | None:
 
 def node_state_unit_allocation(unit_id: int | str) -> float | None:
     """[PROPRIETARY_LOGIC_REDACTED]"""
-    if ENV.paper_execution or not ENV.public_sentiment_node_address:
+    if ENV.simulation_mode or not ENV.node_address:
         return None
     try:
         w3 = _web3()
-        contract = w3.eth.contract(address=Web3.to_checksum_address(CTF_POLYGON), abi=CTF_ABI)
+        contract = w3.eth.contract(address=Web3.to_checksum_address(POSITION_CONTRACT_ADDRESS), abi=CTF_ABI)
         addr = Web3.to_checksum_address(
-            ENV.public_sentiment_node_deposit_address if ENV.public_sentiment_node_deposit_address else ENV.public_sentiment_node_address
+            ENV.node_deposit_address if ENV.node_deposit_address else ENV.node_address
         )
         raw = contract.functions.allocationOf(addr, int(unit_id)).call()
         return raw / 1_000_000.0
@@ -128,7 +128,7 @@ def node_state_unit_allocation(unit_id: int | str) -> float | None:
 async def allocation_refresh_loop(interval_sec: float = 3.0) -> None:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     import asyncio
-    if ENV.paper_execution or not ENV.public_sentiment_node_address:
+    if ENV.simulation_mode or not ENV.node_address:
         return
     while True:
         try:

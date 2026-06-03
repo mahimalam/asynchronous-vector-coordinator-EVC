@@ -35,9 +35,9 @@ def _engine_is_paper(engine: str) -> bool:
     num = engine[1:] if engine.startswith("E") else engine
     key = _ENGINE_CFG_KEY.get(num, f"engine_{num}")
     eng_cfg = CONFIG.raw.get(key, {})
-    if "paper_execution" in eng_cfg:
-        return bool(eng_cfg["paper_execution"])
-    return ENV.paper_execution
+    if "simulation_mode" in eng_cfg:
+        return bool(eng_cfg["simulation_mode"])
+    return ENV.simulation_mode
 
 
 @dataclass
@@ -82,7 +82,7 @@ class ResourceAllocator:
         self._open_cache = None
 
     def total_allocation(self) -> float:
-        return virtual_paper_allocation() if ENV.paper_execution else base_unitsc_allocation()
+        return virtual_paper_allocation() if ENV.simulation_mode else base_unitsc_allocation()
 
     def _engine_allocation(self, engine: str) -> float:
         """[PROPRIETARY_LOGIC_REDACTED]"""

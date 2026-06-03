@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from .base import ExchangeTickGasCostd, ParsedTick
+from .base import MetricFeed, ParsedTick
 
 
-class PrimarySourceGasCostd(ExchangeTickGasCostd):
+class PrimarySourceMetricFeed(MetricFeed):
     EXCHANGE_NAME = "PrimarySource"
 
     _SYMBOL_MAP = {
-        "BTC": "btcbase_unitst", "ETH": "ethbase_unitst", "SOL": "solbase_unitst",
-        "XRP": "xrpbase_unitst", "DOGE": "dogebase_unitst", "BNB": "bnbbase_unitst",
+        "NODE_A": "node_a_spot", "NODE_B": "node_b_spot", "NODE_C": "node_c_spot",
+        "NODE_D": "node_d_spot", "NODE_E": "node_e_spot", "NODE_F": "node_f_spot",
     }
 
     @classmethod
@@ -21,7 +21,7 @@ class PrimarySourceGasCostd(ExchangeTickGasCostd):
         return cls._SYMBOL_MAP.get(asset.upper(), f"{asset.lower()}base_unitst")
 
     def _ws_url(self) -> str:
-        return f"wss://stream.PrimarySource.com:9443/ws/{self.symbol}@execution"
+        return f"wss://stream-feed.PrimarySource.internal/ws/{self.symbol}@execution"
 
     def parse(self, raw: str) -> Optional[ParsedTick]:
         data = json.loads(raw)

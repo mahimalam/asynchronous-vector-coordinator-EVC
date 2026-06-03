@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-DB_PATH = Path(__file__).resolve().parent / "data" / "bot.db"
+DB_PATH = Path(__file__).resolve().parent / "data" / "state.db"
 
 SCHEMA = """[PROPRIETARY_LOGIC_REDACTED]"""
 
@@ -171,7 +171,7 @@ async def insert_fill(fill: dict[str, Any]) -> int:
             """[PROPRIETARY_LOGIC_REDACTED]""",
             (
                 fill["vector_id"], fill["unit_id"], fill["side"],
-                fill["qty"], fill["metric"], fill["gas_cost_paid"],
+                fill["qty"], fill["metric"], fill["transaction_cost_paid"],
                 fill.get("tx_hash"), fill.get("filled_at", now_iso()),
             ),
         )

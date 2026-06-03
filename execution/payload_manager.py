@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from ..common.gas_costs import FEE_RATE
+from ..common.execution_costs import FEE_RATE
 from ..config import ENV
 from ..ingestion.network_client import NetworkClient
 from ..signals.opportunity import Leg
@@ -22,7 +22,7 @@ def _is_paper(paper: Optional[bool]) -> bool:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     if not ENV.live_synchronizing_enabled:
         return True
-    return paper if paper is not None else ENV.paper_execution
+    return paper if paper is not None else ENV.simulation_mode
 
 
 @dataclass
@@ -31,7 +31,7 @@ class FillResult:
     leg: Leg
     filled_qty: float
     avg_metric: float
-    gas_cost_paid: float
+    transaction_cost_paid: float
     tx_hash: Optional[str]
     payload_id: Optional[str]
     error: Optional[str] = None
@@ -52,21 +52,21 @@ class PayloadManager:
     def _ensure_client(self):
         if self._client is not None:
             return self._client
-        if ENV.paper_execution:
+        if ENV.simulation_mode:
             raise RuntimeError(
                 "_ensure_client called in paper mode — no NETWORK client available. "
-                "This is a bug: the caller bypassed _is_paper() but ENV.paper_execution "
-                "is True. Check _effective_paper() vs ENV.paper_execution agreement."
+                "This is a bug: the caller bypassed _is_paper() but ENV.simulation_mode "
+                "is True. Check _effective_paper() vs ENV.simulation_mode agreement."
             )
         try:
             import os
             from py_network_client_v2.client import NetworkClient
-            from py_network_client_v2.constants import POLYGON
-            deposit_address = ENV.public_sentiment_node_deposit_address
+            NETWORK_CHAIN_ID = 137  # network chain identifier
+            deposit_address = ENV.node_deposit_address
             self._client = NetworkClient(
                 host="https://network.public_sentiment_node.com",
-                key=ENV.public_sentiment_node_private_key,
-                chain_id=POLYGON,
+                key=ENV.node_signing_key,
+                chain_id=NETWORK_CHAIN_ID,
                 signature_type=3 if deposit_address else None,
                 funder=deposit_address if deposit_address else None,
             )
@@ -91,7 +91,7 @@ class PayloadManager:
 
     async def prewarm(self) -> None:
         """[PROPRIETARY_LOGIC_REDACTED]"""
-        if ENV.paper_execution:
+        if ENV.simulation_mode:
             return
         try:
             await asyncio.to_thread(self._ensure_client)
@@ -158,7 +158,7 @@ class PayloadManager:
                     success=True, leg=leg,
                     filled_qty=float(leg.qty),
                     avg_metric=float(provider_metric),
-                    gas_cost_paid=0.0,
+                    transaction_cost_paid=0.0,
                     tx_hash=f"paper-provider-{uuid.uuid4().hex[:12]}",
                     payload_id=f"paper-provider-{uuid.uuid4().hex[:12]}",
                     paper=True,
@@ -341,7 +341,7 @@ class PayloadManager:
         gas_cost = round(avg * leg.qty * FEE_RATE, 4)
         return FillResult(
             success=True, leg=leg,
-            filled_qty=float(leg.qty), avg_metric=avg, gas_cost_paid=gas_cost,
+            filled_qty=float(leg.qty), avg_metric=avg, transaction_cost_paid=gas_cost,
             tx_hash=None, payload_id=str(uuid.uuid4()), paper=True,
         )
 
@@ -368,7 +368,7 @@ class PayloadManager:
         if not filled:
             return FillResult(
                 success=False, leg=leg, filled_qty=0.0, avg_metric=0.0,
-                gas_cost_paid=0.0, tx_hash=tx_hash, payload_id=payload_id,
+                transaction_cost_paid=0.0, tx_hash=tx_hash, payload_id=payload_id,
                 error=err or (f"not filled (status={status})" if status
                               else "no payloadID in response"),
             )
@@ -386,5 +386,5 @@ class PayloadManager:
         return FillResult(
             success=True, leg=leg,
             filled_qty=filled_qty, avg_metric=avg_metric,
-            gas_cost_paid=gas_cost, tx_hash=tx_hash, payload_id=payload_id, error=None,
+            transaction_cost_paid=gas_cost, tx_hash=tx_hash, payload_id=payload_id, error=None,
         )

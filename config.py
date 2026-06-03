@@ -25,11 +25,11 @@ def _get(name: str, default: str | None = None, *, required: bool = False) -> st
 
 @dataclass(frozen=True)
 class Env:
-    public_sentiment_node_private_key: str
-    public_sentiment_node_address: str
-    polygon_rpc_url: str
-    polygon_ws_url: str
-    quicknode_api_key: str
+    node_signing_key: str
+    node_address: str
+    network_rpc_url: str
+    network_ws_url: str
+    indexer_api_key: str
     telegram_bot_unit: str
     telegram_chat_id: str
     vertex_ai_project: str
@@ -37,12 +37,12 @@ class Env:
     gemini_flash_model: str
     gemini_pro_model: str
     gemini_api_key: str
-    cryptopanic_api_key: str
+    news_api_key: str
     telegram_api_id: int
     telegram_api_hash: str
-    paper_execution: bool
+    simulation_mode: bool
     live_synchronizing_enabled: bool
-    public_sentiment_node_deposit_address: str
+    node_deposit_address: str
     e3_local_resolution_fallback: bool
     e3_honest_fill: bool
     e3_honest_fill_rtt_ms: float
@@ -52,13 +52,13 @@ class Env:
 
     @classmethod
     def load(cls) -> "Env":
-        paper = _get("PAPER_TRADE", "true").lower() in ("1", "true", "yes")
+        paper = _get("SIMULATION_MODE", "true").lower() in ("1", "true", "yes")
         return cls(
-            public_sentiment_node_private_key=_get("POLYMARKET_PRIVATE_KEY", required=not paper),
-            public_sentiment_node_address=_get("POLYMARKET_ADDRESS", required=not paper),
-            polygon_rpc_url=_get("POLYGON_RPC_URL", "https://polygon-rpc.com"),
-            polygon_ws_url=_get("POLYGON_WS_URL", ""),
-            quicknode_api_key=_get("QUICKNODE_API_KEY", ""),
+            node_signing_key=_get("NODE_SIGNING_KEY", required=not paper),
+            node_address=_get("NODE_ADDRESS", required=not paper),
+            network_rpc_url=_get("NETWORK_RPC_URL", "https://network-rpc.internal"),
+            network_ws_url=_get("NETWORK_WS_URL", ""),
+            indexer_api_key=_get("INDEXER_API_KEY", ""),
             telegram_bot_unit=_get("TELEGRAM_BOT_TOKEN", ""),
             telegram_chat_id=_get("TELEGRAM_CHAT_ID", ""),
             vertex_ai_project=_get("VERTEX_AI_PROJECT", "new-n8n-project-490407"),
@@ -66,13 +66,13 @@ class Env:
             gemini_flash_model=_get("GEMINI_FLASH_MODEL", "gemini-2.5-flash"),
             gemini_pro_model=_get("GEMINI_PRO_MODEL", "gemini-2.5-pro"),
             gemini_api_key=_get("GEMINI_API_KEY", ""),
-            cryptopanic_api_key=_get("CRYPTOPANIC_API_KEY", ""),
+            news_api_key=_get("NEWS_API_KEY", ""),
             telegram_api_id=int(_get("TELEGRAM_API_ID", "0") or "0"),
             telegram_api_hash=_get("TELEGRAM_API_HASH", ""),
-            paper_execution=paper,
-            live_synchronizing_enabled=_get("LIVE_TRADING_ENABLED", "false").lower()
+            simulation_mode=paper,
+            live_synchronizing_enabled=_get("LIVE_EXECUTION_ENABLED", "false").lower()
             in ("1", "true", "yes"),
-            public_sentiment_node_deposit_address=_get("POLYMARKET_DEPOSIT_WALLET", ""),
+            node_deposit_address=_get("NODE_DEPOSIT_ADDRESS", ""),
             e3_local_resolution_fallback=_get(
                 "E3_LOCAL_RESOLUTION_FALLBACK", "false"
             ).lower() in ("1", "true", "yes"),

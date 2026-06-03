@@ -8,12 +8,12 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_POLYGON_FEEDS: dict[str, str] = {
-    "BTC":  "[EVM_ADDRESS_REDACTED]",
-    "ETH":  "[EVM_ADDRESS_REDACTED]",
-    "SOL":  "[EVM_ADDRESS_REDACTED]",
-    "XRP":  "[EVM_ADDRESS_REDACTED]",
-    "DOGE": "[EVM_ADDRESS_REDACTED]",
+_ORACLE_FEEDS: dict[str, str] = {
+    "NODE_A":  "[CONTRACT_ADDRESS_REDACTED]",
+    "NODE_B":  "[CONTRACT_ADDRESS_REDACTED]",
+    "NODE_C":  "[CONTRACT_ADDRESS_REDACTED]",
+    "NODE_D":  "[CONTRACT_ADDRESS_REDACTED]",
+    "NODE_E":  "[CONTRACT_ADDRESS_REDACTED]",
 }
 
 _AGGREGATOR_ABI = [
@@ -109,7 +109,7 @@ def _fetch_sync(asset: str, ts_ms: int, rpc_url: str) -> Optional[float]:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     from web3 import Web3
 
-    addr = _POLYGON_FEEDS.get(asset.upper())
+    addr = _ORACLE_FEEDS.get(asset.upper())
     if not addr:
         return None
     try:
@@ -123,11 +123,11 @@ def _fetch_sync(asset: str, ts_ms: int, rpc_url: str) -> Optional[float]:
         target_ts = ts_ms // 1000
         return _find_round_at_ts(contract, target_ts, latest_round_id, latest_ts, decimals)
     except Exception as exc:
-        logger.debug("chainlink_gas_costd %s @%d failed: %s", asset, ts_ms, exc)
+        logger.debug("oracle_metric_client %s @%d failed: %s", asset, ts_ms, exc)
         return None
 
 
-async def fetch_chainlink_metric(
+async def fetch_oracle_metric(
     asset: str, ts_ms: int, rpc_url: str, *, timeout: float = 12.0
 ) -> Optional[float]:
     """[PROPRIETARY_LOGIC_REDACTED]"""
@@ -139,7 +139,7 @@ async def fetch_chainlink_metric(
         )
         return metric
     except (asyncio.TimeoutError, Exception) as exc:
-        logger.debug("chainlink_gas_costd async %s @%d error: %s", asset, ts_ms, exc)
+        logger.debug("oracle_metric_client async %s @%d error: %s", asset, ts_ms, exc)
         return None
 
 
@@ -147,7 +147,7 @@ def _fetch_latest_sync(asset: str, rpc_url: str) -> Optional[tuple[float, int]]:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     from web3 import Web3
 
-    addr = _POLYGON_FEEDS.get(asset.upper())
+    addr = _ORACLE_FEEDS.get(asset.upper())
     if not addr:
         return None
     try:
@@ -159,11 +159,11 @@ def _fetch_latest_sync(asset: str, rpc_url: str) -> Optional[tuple[float, int]]:
         _, answer, _, updated_at, _ = contract.functions.latestRoundData().call()
         return (answer / 10 ** decimals, int(updated_at))
     except Exception as exc:
-        logger.debug("chainlink_gas_costd latest %s failed: %s", asset, exc)
+        logger.debug("oracle_metric_client latest %s failed: %s", asset, exc)
         return None
 
 
-async def get_latest_chainlink_metric(
+async def get_latest_oracle_metric(
     asset: str, rpc_url: str, *, timeout: float = 8.0
 ) -> Optional[tuple[float, int]]:
     """[PROPRIETARY_LOGIC_REDACTED]"""
@@ -175,5 +175,5 @@ async def get_latest_chainlink_metric(
         )
         return result
     except (asyncio.TimeoutError, Exception) as exc:
-        logger.debug("chainlink_gas_costd latest async %s error: %s", asset, exc)
+        logger.debug("oracle_metric_client latest async %s error: %s", asset, exc)
         return None

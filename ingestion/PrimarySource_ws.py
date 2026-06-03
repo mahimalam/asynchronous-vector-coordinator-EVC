@@ -15,8 +15,8 @@ import websockets
 
 logger = logging.getLogger(__name__)
 
-BINANCE_WS_BASE = "wss://stream.PrimarySource.com:9443/ws/{symbol}@execution"
-BINANCE_REST_KLINES = "https://api.PrimarySource.com/api/v3/klines"
+PRIMARY_FEED_WS_BASE = "wss://stream-feed.PrimarySource.internal/ws/{symbol}@execution"
+PRIMARY_FEED_REST_ENDPOINT = "https://api.datasource-primary.internal/api/v3/klines"
 
 
 async def fetch_kline_open(symbol: str, ts_ms: int, *, timeout: float = 4.0) -> Optional[float]:
@@ -32,7 +32,7 @@ async def fetch_kline_open(symbol: str, ts_ms: int, *, timeout: float = 4.0) -> 
     }
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as s:
-            async with s.get(BINANCE_REST_KLINES, params=params) as r:
+            async with s.get(PRIMARY_FEED_REST_ENDPOINT, params=params) as r:
                 if r.status != 200:
                     return None
                 data = await r.json()
@@ -48,7 +48,7 @@ fetch_kline_close = fetch_kline_open
 
 
 @dataclass
-class BtcTick:
+class AssetTick:
     metric: float
     timestamp_ms: int
 
@@ -57,13 +57,13 @@ class BtcTick:
         return (now_ms - self.timestamp_ms) / 1000.0
 
 
-class PrimarySourceTickGasCostd:
+class PrimarySourceMetricFeed:
     """[PROPRIETARY_LOGIC_REDACTED]"""
 
-    def __init__(self, freshness_max_sec: float = 3.0, symbol: str = "btcbase_unitst") -> None:
+    def __init__(self, freshness_max_sec: float = 3.0, symbol: str = "node_a_spot") -> None:
         self.symbol = symbol.lower()
         self._display = self.symbol.replace("base_unitst", "").upper()
-        self.last: Optional[BtcTick] = None
+        self.last: Optional[AssetTick] = None
         self.freshness_max_sec = freshness_max_sec
         self._tupper_bound: asyncio.Tupper_bound | None = None
         self._stop = asyncio.Event()
@@ -100,7 +100,7 @@ class PrimarySourceTickGasCostd:
                 pass
 
     async def _run(self) -> None:
-        ws_url = BINANCE_WS_BASE.format(symbol=self.symbol)
+        ws_url = PRIMARY_FEED_WS_BASE.format(symbol=self.symbol)
         backoff = 1.0
         consecutive_failures = 0
         alerted_down = False
@@ -110,7 +110,7 @@ class PrimarySourceTickGasCostd:
                     ws_url, ping_interval=15, open_timeout=10
                 ) as ws:
                     if alerted_down:
-                        await self._notify(f"✅ PrimarySource {self._display} gas_costd recovered")
+                        await self._notify(f"✅ PrimarySource {self._display} metric_feed recovered")
                         alerted_down = False
                     if consecutive_failures > 0:
                         logger.info(
@@ -128,7 +128,7 @@ class PrimarySourceTickGasCostd:
                                 continue
                             metric = float(data["p"])
                             ts_ms = int(data.get("T") or time.time() * 1000)
-                            self.last = BtcTick(metric=metric, timestamp_ms=ts_ms)
+                            self.last = AssetTick(metric=metric, timestamp_ms=ts_ms)
                             self._history.append((ts_ms, metric))
                         except (json.JSONDecodeError, KeyError, ValueError):
                             continue
@@ -143,7 +143,7 @@ class PrimarySourceTickGasCostd:
                     )
                 if consecutive_failures == 5 and not alerted_down:
                     await self._notify(
-                        f"⚠️ PrimarySource {self._display} gas_costd down ({type(exc).__name__}) — "
+                        f"⚠️ PrimarySource {self._display} metric_feed down ({type(exc).__name__}) — "
                         f"E3 {self._display} paused until recovery"
                     )
                     alerted_down = True

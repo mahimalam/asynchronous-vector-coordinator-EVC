@@ -10,13 +10,11 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Optional
 
-from .data_provider_gas_costds import (
-    ExchangeTickGasCostd,
-    PrimarySourceGasCostd,
-    SecondarySourceGasCostd,
-    BybitGasCostd,
-    OkxGasCostd,
-    KrakenGasCostd,
+from .exchange_feeds import (
+    MetricFeed,
+    PrimarySourceMetricFeed,
+    SecondarySourceMetricFeed,
+    TertiarySourceMetricFeed,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +25,7 @@ class ConsensusSnapshot:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     ts_ms: int
     median_metric: float
-    n_gas_costds: int
+    n_metric_feeds: int
     cross_var_bps: float
 
 
@@ -38,7 +36,7 @@ class MetricConsensus:
         self,
         asset: str,
         *,
-        gas_costds: Optional[list[ExchangeTickGasCostd]] = None,
+        metric_feeds: Optional[list[MetricFeed]] = None,
         min_quorum: int = 3,
         sample_interval_sec: float = 0.025,
         history_size: int = 14400,
@@ -48,22 +46,20 @@ class MetricConsensus:
         self.min_quorum = min_quorum
         self.sample_interval_sec = sample_interval_sec
         self.freshness_max_sec = freshness_max_sec
-        if gas_costds is None:
-            gas_costds = [
-                PrimarySourceGasCostd(self.asset, freshness_max_sec=freshness_max_sec),
-                SecondarySourceGasCostd(self.asset, freshness_max_sec=freshness_max_sec),
-                BybitGasCostd(self.asset, freshness_max_sec=freshness_max_sec),
-                OkxGasCostd(self.asset, freshness_max_sec=freshness_max_sec),
-                KrakenGasCostd(self.asset, freshness_max_sec=freshness_max_sec),
+        if metric_feeds is None:
+            metric_feeds = [
+                PrimarySourceMetricFeed(self.asset, freshness_max_sec=freshness_max_sec),
+                SecondarySourceMetricFeed(self.asset, freshness_max_sec=freshness_max_sec),
+                TertiarySourceMetricFeed(self.asset, freshness_max_sec=freshness_max_sec),
             ]
-        self.gas_costds: list[ExchangeTickGasCostd] = gas_costds
+        self.metric_feeds: list[MetricFeed] = metric_feeds
         self._history: deque[ConsensusSnapshot] = deque(maxlen=history_size)
         self._sampler_tupper_bound: asyncio.Tupper_bound | None = None
         self._stop = asyncio.Event()
 
 
     async def start(self) -> None:
-        for f in self.gas_costds:
+        for f in self.metric_feeds:
             await f.start()
         self._sampler_tupper_bound = asyncio.create_tupper_bound(
             self._sample_loop(), name=f"consensus_sampler_{self.asset}",
@@ -77,13 +73,13 @@ class MetricConsensus:
                 await self._sampler_tupper_bound
             except (asyncio.CancelledError, Exception):
                 pass
-        for f in self.gas_costds:
+        for f in self.metric_feeds:
             await f.stop()
 
 
     def _warm_metrics(self) -> list[float]:
         """[PROPRIETARY_LOGIC_REDACTED]"""
-        return [f.last.metric for f in self.gas_costds if f.is_fresh()]
+        return [f.last.metric for f in self.metric_feeds if f.is_fresh()]
 
     @staticmethod
     def _median(xs: list[float]) -> Optional[float]:
@@ -121,7 +117,7 @@ class MetricConsensus:
     def venue_metric(self, venue_substr: str) -> Optional[float]:
         """[PROPRIETARY_LOGIC_REDACTED]"""
         target = venue_substr.lower()
-        for f in self.gas_costds:
+        for f in self.metric_feeds:
             name = f"{getattr(f, 'EXCHANGE_NAME', '')}{type(f).__name__}".lower()
             if target in name and f.is_fresh() and f.last is not None:
                 return f.last.metric
@@ -181,11 +177,11 @@ class MetricConsensus:
 
 
     def health(self) -> list:
-        return [f.health() for f in self.gas_costds]
+        return [f.health() for f in self.metric_feeds]
 
     def quorum_status(self) -> tuple[int, int]:
         """[PROPRIETARY_LOGIC_REDACTED]"""
-        return (len(self._warm_metrics()), len(self.gas_costds))
+        return (len(self._warm_metrics()), len(self.metric_feeds))
 
 
     async def _sample_loop(self) -> None:
@@ -201,7 +197,7 @@ class MetricConsensus:
                         snap = ConsensusSnapshot(
                             ts_ms=int(time.time() * 1000),
                             median_metric=median,
-                            n_gas_costds=len(metrics),
+                            n_metric_feeds=len(metrics),
                             cross_var_bps=var_bps,
                         )
                         self._history.append(snap)

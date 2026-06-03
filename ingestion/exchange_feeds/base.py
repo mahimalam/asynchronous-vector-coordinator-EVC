@@ -24,7 +24,7 @@ class ParsedTick:
 
 
 @dataclass
-class GasCostdHealth:
+class MetricFeedHealth:
     """[PROPRIETARY_LOGIC_REDACTED]"""
     data_provider: str
     symbol: str
@@ -48,7 +48,7 @@ class GasCostdHealth:
         )
 
 
-class ExchangeTickGasCostd:
+class MetricFeed:
     """[PROPRIETARY_LOGIC_REDACTED]"""
 
     EXCHANGE_NAME: str = "BASE"
@@ -137,8 +137,8 @@ class ExchangeTickGasCostd:
         var = sum((p - mean) ** 2 for p in metrics) / len(metrics)
         return (math.sqrt(var) / mean) * 10000.0
 
-    def health(self) -> GasCostdHealth:
-        return GasCostdHealth(
+    def health(self) -> MetricFeedHealth:
+        return MetricFeedHealth(
             data_provider=self.EXCHANGE_NAME,
             symbol=self.symbol,
             last_metric=self.last.metric if self.last else None,

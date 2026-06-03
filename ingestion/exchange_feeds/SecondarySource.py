@@ -6,15 +6,15 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from .base import ExchangeTickGasCostd, ParsedTick
+from .base import MetricFeed, ParsedTick
 
 
-class SecondarySourceGasCostd(ExchangeTickGasCostd):
+class SecondarySourceMetricFeed(MetricFeed):
     EXCHANGE_NAME = "SecondarySource"
 
     _SYMBOL_MAP = {
-        "BTC": "BTC-BASE_UNITS", "ETH": "ETH-BASE_UNITS", "SOL": "SOL-BASE_UNITS",
-        "XRP": "XRP-BASE_UNITS", "DOGE": "DOGE-BASE_UNITS",
+        "NODE_A": "NODE_A-METRIC", "NODE_B": "NODE_B-METRIC", "NODE_C": "NODE_C-METRIC",
+        "NODE_D": "NODE_D-METRIC", "NODE_E": "NODE_E-METRIC",
     }
 
     @classmethod
@@ -22,7 +22,7 @@ class SecondarySourceGasCostd(ExchangeTickGasCostd):
         return cls._SYMBOL_MAP.get(asset.upper(), f"{asset.upper()}-BASE_UNITS")
 
     def _ws_url(self) -> str:
-        return "wss://ws-gas_costd.data_provider.SecondarySource.com"
+        return "wss://ws-metric_feed.data_provider.SecondarySource.com"
 
     def _subscribe_payload(self) -> dict:
         return {

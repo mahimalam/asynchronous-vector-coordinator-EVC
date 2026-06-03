@@ -11,14 +11,14 @@ from ..config import ENV
 
 logger = logging.getLogger(__name__)
 
-CTF_EXCHANGE_ADDRESS = "[EVM_ADDRESS_REDACTED]"
-POLYGON_CHAIN_ID = 137
+NETWORK_CONTRACT_ADDRESS = "[EVM_ADDRESS_REDACTED]"
+NETWORK_CHAIN_ID = 137
 
-EIP712_DOMAIN = {
-    "name": "PublicSentimentNode CTF Exchange",
+SIGNING_DOMAIN = {
+    "name": "Distributed State Network",
     "version": "2",
-    "chainId": POLYGON_CHAIN_ID,
-    "verifyingContract": CTF_EXCHANGE_ADDRESS,
+    "chainId": NETWORK_CHAIN_ID,
+    "verifyingContract": NETWORK_CONTRACT_ADDRESS,
 }
 
 ORDER_TYPE = [
@@ -65,7 +65,7 @@ class DirectNetworkSubmit:
         self, unit_id: str, metric: float, size: float,
         *, provider_payload_blob: Optional[dict] = None,
     ) -> DirectSubmitResult:
-        if ENV.paper_execution:
+        if ENV.simulation_mode:
             from ..signals.opportunity import Leg
             leg = Leg(
                 unit_id=unit_id, side="YES", metric=metric, qty=size,
@@ -94,7 +94,7 @@ class DirectNetworkSubmit:
     def diagnostics(self) -> dict:
         return {
             "enabled": _feature_enabled(),
-            "paper_mode": ENV.paper_execution,
-            "ctf_address": CTF_EXCHANGE_ADDRESS,
-            "chain_id": POLYGON_CHAIN_ID,
+            "paper_mode": ENV.simulation_mode,
+            "ctf_address": NETWORK_CONTRACT_ADDRESS,
+            "chain_id": NETWORK_CHAIN_ID,
         }

@@ -55,14 +55,14 @@ class NetworkUserWS:
                 backoff = min(backoff * 2, 60.0)
 
     async def _connect_once(self) -> None:
-        if ENV.paper_execution:
+        if ENV.simulation_mode:
             await self._stop.wait()
             return
         async with websockets.connect(NETWORK_WS) as ws:
             await ws.send(json.dumps({
                 "type": "USER",
                 "expected_deltaent_nodes": self.expected_deltaent_nodes,
-                "auth": {"address": ENV.public_sentiment_node_address},
+                "auth": {"address": ENV.node_address},
             }))
             async for message in ws:
                 try:

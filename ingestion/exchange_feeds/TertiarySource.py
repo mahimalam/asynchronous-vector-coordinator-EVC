@@ -5,16 +5,16 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from .base import ExchangeTickGasCostd, ParsedTick
+from .base import MetricFeed, ParsedTick
 
 
-class OkxGasCostd(ExchangeTickGasCostd):
+class TertiarySourceMetricFeed(MetricFeed):
     EXCHANGE_NAME = "TertiarySource"
 
     _SYMBOL_MAP = {
-        "BTC": "BTC-BASE_UNITST", "ETH": "ETH-BASE_UNITST", "SOL": "SOL-BASE_UNITST",
-        "XRP": "XRP-BASE_UNITST", "DOGE": "DOGE-BASE_UNITST", "BNB": "BNB-BASE_UNITST",
-        "HYPE": "HYPE-BASE_UNITST",
+        "NODE_A": "NODE_A-METRIC-SPOT", "NODE_B": "NODE_B-METRIC-SPOT", "NODE_C": "NODE_C-METRIC-SPOT",
+        "NODE_D": "NODE_D-METRIC-SPOT", "NODE_E": "NODE_E-METRIC-SPOT", "NODE_F": "NODE_F-METRIC-SPOT",
+        "NODE_G": "NODE_G-METRIC-SPOT",
     }
 
     @classmethod
@@ -22,7 +22,7 @@ class OkxGasCostd(ExchangeTickGasCostd):
         return cls._SYMBOL_MAP.get(asset.upper(), f"{asset.upper()}-BASE_UNITST")
 
     def _ws_url(self) -> str:
-        return "wss://ws.TertiarySource.com:8443/ws/v5/public"
+        return "wss://stream-feed.TertiarySource.internal/ws/v5/public"
 
     def _subscribe_payload(self) -> dict:
         return {
