@@ -8,8 +8,8 @@
     "capital_hard_floor_usd": 0.5,
     "gas_pct_cap": 0.05,
     "fee_rate": 0.0,
-    "_fee_rate_comment": "2026-05-29 VERIFIED from Polymarket docs: fees are NOT zero anymore. Platform fee is TAKER-ONLY and SELL orders are EXEMPT. Crypto taker fee = shares*feeRate*p*(1-p) with feeRate~0.072 -> peak EFFECTIVE 1.80% at p=0.50, ~0 at the 0/1 extremes. Makers pay $0 + earn a ~20-25% rebate of the counterparty's taker fee. Implication: (1) taker-buy ARB is dead (~1.8%x2 near 50/50); (2) the MM touch-maker is fee-safe by construction (maker bids = $0, sells exempt) so its measured PnL is ~honest at fee_rate=0; (3) NEVER add a taker-buy path near 50/50. crypto_taker_fee_rate below is for any future taker-cost gate.",
-    "crypto_taker_fee_rate": 0.072,
+    "_fee_rate_comment": "2026-05-29 VERIFIED from platform documentation: fees are NOT zero anymore. Platform fee is TAKER-ONLY and SELL orders are EXEMPT. Taker fee = shares*feeRate*p*(1-p) with feeRate~0.072 -> peak EFFECTIVE 1.80% at p=0.50, ~0 at the 0/1 extremes. Makers pay $0 + earn a ~20-25% rebate of the counterparty's taker fee. Implication: (1) taker-buy ARB is dead (~1.8%x2 near 50/50); (2) the MM touch-maker is fee-safe by construction (maker bids = $0, sells exempt) so its measured PnL is ~honest at fee_rate=0; (3) NEVER add a taker-buy path near 50/50. taker_fee_rate below is for any future taker-cost gate.",
+    "taker_fee_rate": 0.072,
     "maker_rebate_pct": 0.20,
     "gas_usd_per_leg": 0.0,
     "slippage_bps": 200,
@@ -61,10 +61,10 @@
     }
   },
   "mm": {
-    "_comment": "Market-making engine. Posts resting limit orders around fair value on UPDOWN crypto binaries, earns spread, cancels before lock. Replaces the E3 taker sniper. 1h = live-intent (clean Binance anchor); 15m = paper observe-only (Chainlink Data Streams settle, we only have stale aggregator proxy).",
+    "_comment": "Market-making engine. Posts resting limit orders around fair value on UPDOWN node binaries, earns spread, cancels before lock. Replaces the E3 taker sniper. 1h = live-intent (clean primary data source anchor); 15m = paper observe-only (decentralized oracle settlement, we only have stale aggregator proxy).",
     "enabled": true,
-    "paper_trade": false,
-    "_paper_trade_comment": "2026-05-31 RE-ARMED LIVE (run 3). The shelve verdict was overconfident: backing the -$0.61 market-dump-exit mistake out of the -$0.43 total, the strategy book was ~+$0.18 on marks before I flattened. The two prior negatives were confounded (run1 = ask-chase bug, since fixed; run2 = my panic FAK dump + averaging-down). User approved a bounded re-test with a $3 risk budget (wallet $18.03 -> hard floor ~$15). Re-arm adds ONE new guard: event_markets.no_average_down=true (never add to a held leg below avg cost — kills the 665374 falling-knife). Hard rules this run: (1) mm_cumulative_loss_limit_usd=3.0 = permanent halt; (2) NEVER market-dump to flatten — patient limit sells only, and flag mark-vs-realizable before any flatten. Set paper via config mm.paper_trade=true + unit SIMULATION_MODE=true to halt. See [[project_mm_live_execution]] + [[feedback_working_style]].",
+    "simulation_mode": false,
+    "_simulation_mode_comment": "2026-05-31 RE-ARMED LIVE (run 3). The shelve verdict was overconfident: backing the -$0.61 market-dump-exit mistake out of the -$0.43 total, the strategy book was ~+$0.18 on marks before I flattened. The two prior negatives were confounded (run1 = ask-chase bug, since fixed; run2 = my panic FAK dump + averaging-down). User approved a bounded re-test with a $3 risk budget (wallet $18.03 -> hard floor ~$15). Re-arm adds ONE new guard: event_markets.no_average_down=true (never add to a held leg below avg cost — kills the 665374 falling-knife). Hard rules this run: (1) mm_cumulative_loss_limit_usd=3.0 = permanent halt; (2) NEVER market-dump to flatten — patient limit sells only, and flag mark-vs-realizable before any flatten. Set paper via config mm.simulation_mode=true + unit SIMULATION_MODE=true to halt. See [[project_mm_live_execution]] + [[feedback_working_style]].",
     "paper_starting_balance_usd": 30.0,
     "assets": [
       "BTC",
@@ -98,7 +98,7 @@
         "vol_window_sec": 60,
         "near_expiry_widen": 1.0,
         "max_half_spread": 0.2,
-        "settle_venue": "binance_btcusdt"
+        "settle_venue": "primary_source_node_a"
       },
       "15m": {
         "enabled": false,
@@ -115,7 +115,7 @@
         "vol_window_sec": 60,
         "near_expiry_widen": 1.0,
         "max_half_spread": 0.2,
-        "settle_venue": "chainlink_aggregator_proxy"
+        "settle_venue": "oracle_aggregator_proxy"
       }
     },
     "_event_markets_comment": "2026-05-29 PIVOT to fee-free event markets. Verified live via Gamma feeSchedule/feesEnabled: geopolitics (76 free) + world (89 free) markets are PERMANENTLY FEE-FREE, with 1-1.5c spreads and $74-118k median volume. Unlike crypto binaries they are NEWS-driven (prices sit stable between headlines, not a mechanical gamma-grind to 0/1) -> the choppy/mean-reverting regime spread-capture needs. Same touch-maker runs here with consensus=None (no underlying feed -> drift guard naturally off, which is correct: there is no gamma gap to guard against). Discovery filters per-market fee-free + makeable (spread<=max, mid in band, volume>=min). Lower trade frequency than crypto but each fee-free spread capture is real.",
@@ -133,7 +133,7 @@
       "_canary_comment": "2026-05-31: scaled to 10 markets at $18.46 wallet (10 x ~$1.5 avg bid = ~$15 peak, within balance). Was 3 for the $5 canary.",
       "max_markets": 10,
       "size_usd": 1.0,
-      "_min_order_shares_comment": "2026-05-30: Polymarket rejects orders below 5 shares ('Size lower than the minimum: 5'), found live. Orders are sized qty=max(min_order_shares, size_usd/price) so they always conform.",
+      "_min_order_shares_comment": "2026-05-30: Platform rejects orders below 5 shares ('Size lower than the minimum: 5'), found live. Orders are sized qty=max(min_order_shares, size_usd/price) so they always conform.",
       "min_order_shares": 5,
       "_max_leg_price_comment": "2026-05-30: only ACCUMULATE the cheap leg (price <= this). The 5-share min makes the expensive leg of a binary cost 5*price (>=$4 near $0.80) — unaffordable on a small wallet. 0.40 covers the whole cheap side of the barbell universe (mids 0.12-0.37). Max lot = 5*0.40 = $2.",
       "max_leg_price": 0.40,

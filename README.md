@@ -48,7 +48,7 @@ graph TD
 ### 1. Ingestion Pipeline (`/ingestion`)
 The ingestion layer is built using raw asynchronous WebSockets to minimize JSON parsing latency. It establishes persistent, bi-directional streams with `PrimarySource`, `SecondarySource`, and `TertiarySource` data nodes. 
 - **`metric_consensus.py`**: Aggregates divergent metric data into a single ground-truth value using a weighted median filter.
-- **`chainlink_gas_costd.py`**: Monitors external decentralised oracles for structural cost shifts.
+- **`oracle_metric_client.py`**: Monitors external decentralised oracles for structural cost shifts.
 
 ### 2. Execution Orchestration (`/execution`)
 Once a state divergence is detected, the Execution Layer compiles a resolution vector. 
