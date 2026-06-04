@@ -2,7 +2,7 @@
   <h1>Asynchronous Vector Coordinator (EVC)</h1>
   <p><b>Distributed State Routing & Execution Orchestrator</b></p>
   
-  [![CI](https://github.com/mahimalam/asynchronous-vector-coordinator-EVC/actions/workflows/ci.yml/badge.svg)](https://github.com/mahimalam/asynchronous-vector-coordinator-EVC/actions/workflows/ci.yml)
+  [![CI](https://github.com/mahimalam/async-event-coordinator/actions/workflows/ci.yml/badge.svg)](https://github.com/mahimalam/async-event-coordinator/actions/workflows/ci.yml)
   [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
   [![Concurrency](https://img.shields.io/badge/Concurrency-AsyncIO-green?style=for-the-badge)](#)
   [![Architecture](https://img.shields.io/badge/Architecture-Event_Driven-orange?style=for-the-badge)](#)
