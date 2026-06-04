@@ -2,6 +2,7 @@
   <h1>Asynchronous Vector Coordinator (EVC)</h1>
   <p><b>Distributed State Routing & Execution Orchestrator</b></p>
   
+  [![CI](https://github.com/mahimalam/asynchronous-vector-coordinator-EVC/actions/workflows/ci.yml/badge.svg)](https://github.com/mahimalam/asynchronous-vector-coordinator-EVC/actions/workflows/ci.yml)
   [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
   [![Concurrency](https://img.shields.io/badge/Concurrency-AsyncIO-green?style=for-the-badge)](#)
   [![Architecture](https://img.shields.io/badge/Architecture-Event_Driven-orange?style=for-the-badge)](#)
@@ -92,12 +93,3 @@ pip install -r requirements.txt
 python main.py --env production --log-level INFO
 ```
 
----
-
-### 🔐 Security & Intellectual Property Notice
-*This repository serves as a professional portfolio demonstration of asynchronous orchestration, high-frequency execution pipelines, and large-scale data engineering.*
-
-To protect proprietary algorithms:
-- All execution paths, explicit state parameters, and internal machine-learning models have been redacted.
-- All specific network addresses, API configurations, and authentication pathways have been scrubbed.
-- The original system structure has been abstracted into generalized graph theory terminology to comply with corporate security standards.
